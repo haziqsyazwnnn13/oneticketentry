@@ -1,8 +1,5 @@
 streamlit
 pandas
-openpyxl
-os
-camera_input_live
-decode
-Image
-BytesIO
+Pillow
+pyzbar
+camera-input-live
