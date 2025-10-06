@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 import os
-from camera_input_live import camera_input_live
 from pyzbar.pyzbar import decode
 from PIL import Image
 
@@ -43,7 +42,6 @@ if uploaded_file:
 
     if set(required_columns).issubset(df.columns):
 
-        # --- Attendance Marking Function ---
         def mark_attendance(entered_val):
             entered_value = entered_val.strip().lower()
             if entered_value:
@@ -59,7 +57,6 @@ if uploaded_file:
                         )
                         st.session_state.message = f"✅ {match.iloc[0]['Name']} marked present!"
 
-                        # Append to persistent CSV
                         if os.path.exists(persistent_file):
                             match.to_csv(persistent_file, mode='a', header=False, index=False)
                         else:
@@ -69,21 +66,17 @@ if uploaded_file:
                 else:
                     st.session_state.message = "❌ No record found with that ID or Matric."
 
-        # --- Manual input with auto-clear ---
+        # --- Manual input ---
         if "entered_temp" not in st.session_state:
             st.session_state.entered_temp = ""
 
         def submit_manual():
             mark_attendance(st.session_state.entered_temp)
-            st.session_state.entered_temp = ""  # auto-clear
+            st.session_state.entered_temp = ""
 
-        st.text_input(
-            "Enter Ticket ID or Matric:",
-            key="entered_temp",
-            on_change=submit_manual
-        )
+        st.text_input("Enter Ticket ID or Matric:", key="entered_temp", on_change=submit_manual)
 
-        # --- Start/Stop QR Scan ---
+        # --- QR Scan ---
         if "scan_active" not in st.session_state:
             st.session_state.scan_active = False
 
@@ -95,25 +88,21 @@ if uploaded_file:
             if st.button("Stop Scan"):
                 st.session_state.scan_active = False
 
-        # --- Camera QR scanning ---
         if st.session_state.scan_active:
-            img = camera_input_live()  # No label
+            img = st.camera_input("Scan QR Code")
             if img is not None:
                 pil_img = Image.open(img)
                 qr_data = decode(pil_img)
                 if qr_data:
                     qr_value = qr_data[0].data.decode("utf-8")
-                    # Avoid duplicate marking
                     if st.session_state.get("last_qr", "") != qr_value:
                         st.session_state.last_qr = qr_value
                         st.success(f"QR scanned: {qr_value}")
                         mark_attendance(qr_value)
 
-        # --- Feedback ---
         if "message" in st.session_state:
             st.info(st.session_state.message)
 
-        # --- Attendance Table ---
         st.subheader("🧾 Current Attendance List")
         st.write(f"Total attendees: **{len(st.session_state.attendance)}**")
         st.dataframe(
@@ -122,21 +111,13 @@ if uploaded_file:
             .set_index(pd.Index(range(1, len(st.session_state.attendance) + 1)))
         )
 
-        # --- Action Buttons ---
         if not st.session_state.attendance.empty:
             col1, col2, col3 = st.columns(3)
 
-            # Delete Entry
             with col1:
-                if "delete_input_value" not in st.session_state:
-                    st.session_state.delete_input_value = ""
-                delete_val = st.text_input(
-                    "Enter ID or Matric to delete:",
-                    key="delete_input",
-                    value=st.session_state.delete_input_value
-                )
+                val = st.text_input("Enter ID or Matric to delete:")
                 if st.button("❌ Delete Entry"):
-                    val = delete_val.strip().lower()
+                    val = val.strip().lower()
                     st.session_state.attendance = st.session_state.attendance[
                         ~(
                             (st.session_state.attendance["ID"].astype(str).str.lower() == val)
@@ -144,19 +125,13 @@ if uploaded_file:
                         )
                     ]
                     st.info(f"Deleted {val} from attendance.")
-                    st.session_state.delete_input_value = ""
 
-            # Clear All with checkbox
             with col2:
-                if "clear_confirm" not in st.session_state:
-                    st.session_state.clear_confirm = False
-                st.session_state.clear_confirm = st.checkbox("⚠ Confirm Clear All?", value=False)
-                if st.button("🧹 Clear All") and st.session_state.clear_confirm:
-                    st.session_state.attendance = pd.DataFrame(columns=df.columns)
-                    st.info("Attendance list cleared.")
-                    st.session_state.clear_confirm = False
+                if st.checkbox("⚠ Confirm Clear All?"):
+                    if st.button("🧹 Clear All"):
+                        st.session_state.attendance = pd.DataFrame(columns=df.columns)
+                        st.info("Attendance list cleared.")
 
-            # Download
             with col3:
                 output = BytesIO()
                 st.session_state.attendance.to_excel(output, index=False)
