@@ -88,7 +88,7 @@ if uploaded_file:
             st.info(st.session_state.message)
 
         # --- Auto QR Scan section ---
-        st.subheader("📷 Auto QR Scan")
+        st.subheader("QR Scan")
 
         # restore last state from query params
         if params.get("page") == "scan":
