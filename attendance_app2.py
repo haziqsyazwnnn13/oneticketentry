@@ -20,7 +20,7 @@ APP_PASSWORD = "1234"  # 👈 change this to your secret code
 # Login form (Enter key or button both work)
 if not st.session_state.authenticated:
     st.title("🔒 ONE TICKET SYSTEM - Login")
-    st.markdown("GALAU")
+    st.markdown("GALAU 3.0")
 
     def check_password():
         if st.session_state.password_input == APP_PASSWORD:
@@ -38,7 +38,7 @@ if not st.session_state.authenticated:
 
 st.set_page_config(page_title="ONE TICKET", layout="centered")
 st.title("ONE TICKET SYSTEM")
-st.markdown("GALAU")
+st.markdown("GALAU 3.0")
 
 # --- Auto-load ticket list ---
 DEFAULT_FILE_XLSX = "ENTRY_GALAU3.0.xlsx"
@@ -229,4 +229,3 @@ with col_dl:
         file_name="attendance_list.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-
