@@ -41,7 +41,7 @@ st.title("ONE TICKET SYSTEM")
 st.markdown("TEATER MAJMUK ALAM")
 
 # --- Auto-load ticket list ---
-DEFAULT_FILE_XLSX = "ENTRY.xlsx"
+DEFAULT_FILE_XLSX = "ENTRY_MAJMUK_ALAM.xlsx"
 DEFAULT_FILE_CSV = "ENTRY.csv"
 
 if os.path.exists(DEFAULT_FILE_XLSX):
@@ -229,4 +229,5 @@ with col_dl:
         file_name="attendance_list.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
 
