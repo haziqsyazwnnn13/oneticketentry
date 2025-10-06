@@ -1,5 +1,5 @@
-streamlit==1.50.0
-pandas==2.3.3
-pyzbar==0.1.9
-Pillow==11.3.0
-streamlit-camera-input-live==0.2.0
+streamlit
+pandas
+camera_input_live
+pyzbar
+Pillow
