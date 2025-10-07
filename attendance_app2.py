@@ -231,3 +231,12 @@ with col_dl:
     )
 
 st.image("d1.png",width=1500)
+st.markdown(
+        """
+        <div style='text-align:center; color:gray; font-size:14px;'>
+            © 2025 ONE TICKET | Developed by <b>hs</b><br>
+            <a href="mailto:oneticket_612@gmail.com" style="color:gray; text-decoration:none;">Contact Support</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
