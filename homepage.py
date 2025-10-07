@@ -39,7 +39,7 @@ def system(Title, password, file):
 
     st.set_page_config(page_title="ONE TICKET", layout="centered")
     st.title("ONE TICKET SYSTEM")
-    st.markdown("GALAU 3.0")
+    st.markdown(Title)
 
     # --- Auto-load ticket list ---
     DEFAULT_FILE_XLSX = file
@@ -473,7 +473,7 @@ elif page == "GALAU 3.0":
 
 elif page == "TEATER":
     st.title("TEATER Attendance System")
-    system("Teater","4321","ENTRY.xlsx")
+    system("Teater","4321","gENTRY.xlsx")
 
 elif page == "sport day":
     system("sport day","6666","ENTRY.xlsx")
@@ -504,6 +504,7 @@ st.markdown(
         """,
         unsafe_allow_html=True
     )
+
 
 
     
