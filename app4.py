@@ -187,3 +187,4 @@ if uploaded_file:
 
 else:
     st.info("Please upload a CSV or Excel file to start.")
+st.image("d1.png",width=1500)
