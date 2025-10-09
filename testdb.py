@@ -11,10 +11,10 @@ from googleapiclient.discovery import build
 
 
 # ================= GOOGLE SHEET SETUP ==================
-SERVICE_ACCOUNT_FILE = "service_account.json"
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+service_account_info = st.secrets["gcp_service_account"]
 
-creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
 sheets_service = build("sheets", "v4", credentials=creds)
 
 # --- Helper Functions ---
@@ -514,3 +514,4 @@ st.markdown(
 
 
     
+
