@@ -14,7 +14,7 @@ from googleapiclient.discovery import build
 SERVICE_ACCOUNT_FILE = "service_account.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
 sheets_service = build("sheets", "v4", credentials=creds)
 
 # --- Helper Functions ---
@@ -510,6 +510,7 @@ st.markdown(
         """,
         unsafe_allow_html=True
     )
+
 
 
     
