@@ -104,8 +104,11 @@ def system(Title, password, mainId, attId):
         def check_password():
             if st.session_state.password_input == APP_PASSWORD:
                 st.session_state[auth_key] = True
-                st.success("ꗃ Access granted ")
-            
+                msg_placeholder = st.empty()
+                msg_placeholder.success("ꗃ Access granted ")
+                time.sleep(2)
+                msg_placeholder.empty()
+                
             else:
                 st.error("⚠ Incorrect password. Please try again.")
 
@@ -115,48 +118,63 @@ def system(Title, password, mainId, attId):
         st.stop()  # Prevent rest of app from loading until login
 
 
+
+
     st.set_page_config(page_title=f"ONE TICKET- {Title}", layout="centered")
     st.title(Title)
     
+    tabs = st.tabs(["Overview ", "Entry", "Record", "⚙ Settings"])
 
-    st.info("ⴵ Loading data")
+    with tabs[0]:#=============================================Overview=======================================================
+        msg_placeholder = st.empty()
+        msg_placeholder.info("ⴵ Loading data")
+        time.sleep(2)
 
-    MAIN_SHEET_ID = mainId
-    ATTENDANCE_SHEET_ID = attId
+        MAIN_SHEET_ID = mainId
+        ATTENDANCE_SHEET_ID = attId
 
-    # ---- session-state initialization ----
-    if "attendance" not in st.session_state:
-        # load from sheet if possible
+        # ---- session-state initialization ----
+        if "attendance" not in st.session_state:
+            # load from sheet if possible
+            try:
+                refresh_attendance_from_sheet(ATTENDANCE_SHEET_ID, required_columns=["Name","Matric","ID"])
+                #msg_placeholder = st.empty()
+                msg_placeholder.success("ⴵ Loaded data from last session")
+                time.sleep(2)
+            except Exception as e:
+                st.warning(f"⚠ Could not load attendance from sheet: {e}")
+                st.session_state.attendance = pd.DataFrame(columns=["Name","Matric","ID"])
+
+        # Booleans / user-controls used later
+        if "clear_confirm" not in st.session_state:
+            st.session_state.clear_confirm = False
+
+        # Ensure delete_input key exists (text_input will create it too; this avoids attribute errors)
+        if "delete_input" not in st.session_state:
+            st.session_state.delete_input = ""
+
+
         try:
-            refresh_attendance_from_sheet(ATTENDANCE_SHEET_ID, required_columns=["Name","Matric","ID"])
-            st.success("Loaded data from last session")
+            df = read_sheet(MAIN_SHEET_ID)
+            msg_placeholder.success(f"ⴵ Loaded main list from {Title} record")
+            time.sleep(2)
+            msg_placeholder.empty()
+           # st.dataframe(df.head())
+            df_display = df.reset_index(drop=True)
+            df_display.index = df_display.index + 1  # Start index from 1
+            st.dataframe(df_display, use_container_width=True)
+
+
         except Exception as e:
-            st.warning(f"⚠ Could not load attendance from sheet: {e}")
-            st.session_state.attendance = pd.DataFrame(columns=["Name","Matric","ID"])
+            st.error(f"⚠ Failed to load main sheet: {e}")
+            st.stop()
 
-    # Booleans / user-controls used later
-    if "clear_confirm" not in st.session_state:
-        st.session_state.clear_confirm = False
+        
 
-    # Ensure delete_input key exists (text_input will create it too; this avoids attribute errors)
-    if "delete_input" not in st.session_state:
-        st.session_state.delete_input = ""
+        # --- Google Sheet Attendance (Live persistence) ---
 
-
-    try:
-        df = read_sheet(MAIN_SHEET_ID)
-        st.success(f"Loaded main list from {Title} record")
-        st.dataframe(df.head())
-    except Exception as e:
-        st.error(f"⚠ Failed to load main sheet: {e}")
-        st.stop()
-
-    
-
-    # --- Google Sheet Attendance (Live persistence) ---
-
-    
-    required_columns = ["Name", "Matric", "ID"]
+        
+        required_columns = ["Name", "Matric", "ID"]
 
     
 
@@ -170,168 +188,173 @@ def system(Title, password, mainId, attId):
         # --- Handle query params safely ---
         params = st.query_params  # new API replacing experimental_get_query_params
 
+    with tabs[1]:#==========================================================Entry===============================================
     # --- Function to mark attendance ---
-    def mark_attendance(entered_val: str):
-        entered_value = str(entered_val).strip().lower()
-        if not entered_value:
-            st.session_state.message = "❌ Empty input."
-            return
+        def mark_attendance(entered_val: str):
+            entered_value = str(entered_val).strip().lower()
+            if not entered_value:
+                st.session_state.message = "❌ Empty input."
+                return
 
-        match = df[
-            (df["ID"].astype(str).str.lower() == entered_value)
-            | (df["Matric"].astype(str).str.lower() == entered_value)
-        ]
+            match = df[
+                (df["ID"].astype(str).str.lower() == entered_value)
+                | (df["Matric"].astype(str).str.lower() == entered_value)
+            ]
 
-        if not match.empty:
-            student_id = str(match.iloc[0]["ID"]).lower()
-            already = any(st.session_state.attendance["ID"].astype(str).str.lower() == student_id)
+            if not match.empty:
+                student_id = str(match.iloc[0]["ID"]).lower()
+                already = any(st.session_state.attendance["ID"].astype(str).str.lower() == student_id)
 
-            if not already:
-                new_row = match.iloc[0].tolist()
-                # Append to Google Sheet
-                append_to_sheet(ATTENDANCE_SHEET_ID, new_row)
+                if not already:
+                    new_row = match.iloc[0].tolist()
+                    # Append to Google Sheet
+                    append_to_sheet(ATTENDANCE_SHEET_ID, new_row)
 
-                # Update local session cache
-                st.session_state.attendance = pd.concat(
-                    [st.session_state.attendance, match], ignore_index=True
-                )
-                st.session_state.message = f"✅ {match.iloc[0]['Name']} marked present!"
+                    # Update local session cache
+                    st.session_state.attendance = pd.concat(
+                        [st.session_state.attendance, match], ignore_index=True
+                    )
+                    st.session_state.message = f"✅ {match.iloc[0]['Name']} marked present!"
+                else:
+                    st.session_state.message = "⚠ This student is already marked present."
             else:
-                st.session_state.message = "⚠ This student is already marked present."
-        else:
-            st.session_state.message = "❌ No record found with that ID or Matric."
+                st.session_state.message = "❌ No record found with that ID or Matric."
 
 
-    # --- Manual Input Section ---
-    st.subheader("📝 Manual Entry")
-    if "entered_temp" not in st.session_state:
-        st.session_state.entered_temp = ""
+        # --- Manual Input Section ---
+        st.subheader("📝 Manual Entry")
+        if "entered_temp" not in st.session_state:
+            st.session_state.entered_temp = ""
 
-    def submit_manual():
-        mark_attendance(st.session_state.entered_temp)
-        st.session_state.entered_temp = ""
+        def submit_manual():
+            mark_attendance(st.session_state.entered_temp)
+            st.session_state.entered_temp = ""
 
-    st.text_input("Enter Ticket ID or Matric:", key="entered_temp", on_change=submit_manual)
-    if "message" in st.session_state:
-        st.info(st.session_state.message)
+        st.text_input("Enter Ticket ID or Matric:", key="entered_temp", on_change=submit_manual)
 
-    
-    # --- Auto QR Scan section ---
-    st.subheader("📷 QR Scan")
+        if "message" in st.session_state:
+            st.info(st.session_state.message)
 
-    if "auto_scan" not in st.session_state:
-        st.session_state.auto_scan = False
+        
+        # --- Auto QR Scan section ---
+        st.subheader("📷 QR Scan")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("▶ Start Auto Scan"):
-            st.session_state.auto_scan = True
-    with col2:
-        if st.button("⏹ Stop Auto Scan"):
+        if "auto_scan" not in st.session_state:
             st.session_state.auto_scan = False
 
-    if st.session_state.auto_scan:
-        img = st.camera_input("Show QR Code to camera")
-        if img is not None:
-            try:
-                pil_img = Image.open(img)
-                qr_value = decode_qr_from_image(pil_img)
-                if qr_value:
-                    if st.session_state.get("last_qr") != qr_value:
-                        st.session_state.last_qr = qr_value
-                        st.success(f"QR scanned: {qr_value}")
-                        mark_attendance(qr_value)
-                        time.sleep(2)  # let user see the success message
-                        st.balloons()
-                        st.rerun()     # rerun to refresh attendance list
-                else:
-                    st.info("No QR detected — try again.")
-            except Exception as e:
-                st.error(f"Error decoding QR: {e}")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("▶ Start Auto Scan"):
+                st.session_state.auto_scan = True
+        with col2:
+            if st.button("⏹ Stop Auto Scan"):
+                st.session_state.auto_scan = False
 
-
-    # --- Attendance Table + Actions ---
-    st.subheader("🧾 Current Attendance List")
-    st.write(f"Total attendees: **{len(st.session_state.attendance)}**")
-    if not st.session_state.attendance.empty:
-        display_df = st.session_state.attendance.reset_index(drop=True)
-        display_df.index = range(1, len(display_df) + 1)
-        st.dataframe(display_df)
-    else:
-        st.info("No attendees yet.")
-
-    st.write("---")
-    col_del, col_clear, col_dl = st.columns(3)
-
-    
-    
-    # -- Delete Entry (Google Sheet compatible) --===========================================
-    with col_del:
-        # create the input widget using a stable key
-        st.text_input("Enter ID or Matric to delete:", key="delete_input")
-
-        if st.button("❌ Delete Entry"):
-            val = st.session_state.get("delete_input", "").strip().lower()
-            if not val:
-                st.warning("Please enter a value to delete.")
-            else:
-                # always refresh from sheet first to avoid stale cache
-                refresh_attendance_from_sheet(ATTENDANCE_SHEET_ID, required_columns=["Name","Matric","ID"])
-                df_att = st.session_state.attendance.copy()
-
-                if df_att.empty:
-                    st.warning("Attendance list is empty.")
-                else:
-                    # ensure columns exist
-                    if "ID" not in df_att.columns or "Matric" not in df_att.columns:
-                        st.error("Attendance sheet missing required columns ('ID' or 'Matric').")
-                    else:
-                        mask = ~(
-                            (df_att["ID"].astype(str).str.lower() == val) |
-                            (df_att["Matric"].astype(str).str.lower() == val)
-                        )
-                        before = len(df_att)
-                        df_updated = df_att[mask].reset_index(drop=True)
-                        after = len(df_updated)
-
-                        if after < before:
-                            # write updated df back to Google Sheet
-                            try:
-                                write_df_to_sheet(ATTENDANCE_SHEET_ID, df_updated)
-                                st.session_state.attendance = df_updated
-                                st.success(f"Deleted record(s) matching '{val}'.")
-                                # rerun so UI updates; do NOT try to change delete_input value directly
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Failed to update Google Sheet: {e}")
-                        else:
-                            st.warning(f"No matching record found for '{val}'.")
-
-
-
-
-
-
-    # -- Clear All (auto untick) --
-    # -- Clear All (Google Sheet integrated) --
-    with col_clear:
-        # checkbox already stored in session_state.clear_confirm
-        st.session_state.clear_confirm = st.checkbox("⚠ Confirm Clear All?", value=st.session_state.clear_confirm)
-
-        if st.button("🧹 Clear All"):
-            if st.session_state.clear_confirm:
+        if st.session_state.auto_scan:
+            img = st.camera_input("Show QR Code to camera")
+            if img is not None:
                 try:
-                    # Write only the header row (keeps columns visible but no data)
-                    header_df = pd.DataFrame(columns=["Name","Matric","ID"])
-                    write_df_to_sheet(ATTENDANCE_SHEET_ID, header_df)
-                    st.session_state.attendance = pd.DataFrame(columns=["Name","Matric","ID"])
-                    st.success("✅ Attendance list cleared from Google Sheet.")
+                    pil_img = Image.open(img)
+                    qr_value = decode_qr_from_image(pil_img)
+                    if qr_value:
+                        if st.session_state.get("last_qr") != qr_value:
+                            st.session_state.last_qr = qr_value
+                            st.success(f"QR scanned: {qr_value}")
+                            mark_attendance(qr_value)
+                            time.sleep(2)  # let user see the success message
+                            st.balloons()
+                            st.rerun()     # rerun to refresh attendance list
+                    else:
+                        st.info("No QR detected — try again.")
+                except Exception as e:
+                    st.error(f"Error decoding QR: {e}")
+
+
+        # --- Attendance Table + Actions ---
+        st.subheader("🧾 Current Attendance List")
+        st.write(f"Total attendees: **{len(st.session_state.attendance)}**")
+        if not st.session_state.attendance.empty:
+            display_df = st.session_state.attendance.reset_index(drop=True)
+            display_df.index = range(1, len(display_df) + 1)
+            st.dataframe(display_df)
+        else:
+            st.info("No attendees yet.")
+
+        st.write("---")
+        col_del, col_clear, col_dl = st.columns(3)
+
+        
+        
+   
+        
+
+    with tabs[2]:#================================================Record=================================================
+        st.subheader("🧾 Current Attendance List")
+        st.write(f"Total attendees: **{len(st.session_state.attendance)}**")
+        if not st.session_state.attendance.empty:
+            display_df = st.session_state.attendance.reset_index(drop=True)
+            display_df.index = range(1, len(display_df) + 1)
+            st.dataframe(display_df)
+        else:
+            st.info("No attendees yet.")
+
+        st.write("---")
+        col_del, col_clear, col_dl = st.columns(3)
+
+        
+        
+        # -- Delete Entry (Google Sheet compatible) --===========================================
+        with col_del:
+            delete_val = st.text_input("Enter ID or Matric to delete:", key="delete_input")
+            if st.button("❌ Delete Entry"):
+                val = delete_val.strip().lower()
+                if val:
+                    before = len(st.session_state.attendance)
+                    st.session_state.attendance = st.session_state.attendance[
+                        ~(
+                            (st.session_state.attendance["ID"].astype(str).str.lower() == val)
+                            | (st.session_state.attendance["Matric"].astype(str).str.lower() == val)
+                        )
+                    ].reset_index(drop=True)
+                    after = len(st.session_state.attendance)
+
+                    if after < before:
+                        st.success(f"✅ Deleted record(s) matching '{val}'. Updating sheet...")
+                        try:
+                            # ✅ Rewrite entire sheet cleanly without duplication
+                            clear_sheet(ATTENDANCE_SHEET_ID)
+                            for _, row in st.session_state.attendance.iterrows():
+                                append_to_sheet(ATTENDANCE_SHEET_ID, row.tolist())
+                            st.info("updated successfully.")
+                            time.sleep(2)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Failed to update Google Sheet: {e}")
+                    else:
+                        st.warning(f"No matching record found for '{val}'.")
+                else:
+                    st.warning("Please enter a value to delete.")
+
+
+        # -- Clear All (auto untick) --
+        # -- Clear All (Google Sheet integrated) --
+        with col_clear:
+            if "clear_confirm" not in st.session_state:
+                st.session_state.clear_confirm = False
+
+            st.session_state.clear_confirm = st.checkbox("⚠ Confirm Clear All?", value=st.session_state.clear_confirm)
+
+            if st.button("🧹 Clear All") and st.session_state.clear_confirm:
+                try:
+                    clear_sheet(ATTENDANCE_SHEET_ID)  # ✅ Clears all rows except header in Google Sheet
+                    st.session_state.attendance = pd.DataFrame(columns=required_columns)
+                    st.success("✅ Attendance sheet cleared successfully.")
+                    time.sleep(2)
                     st.session_state.clear_confirm = False
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Failed to clear Google Sheet: {e}")
-            else:
-                st.warning("Please tick the confirm box before clearing all records.")
+                    st.error(f"❌ Failed to clear sheet: {e}")
+
 
 
 
@@ -512,6 +535,4 @@ st.markdown(
     )
 
 
-
     
-
