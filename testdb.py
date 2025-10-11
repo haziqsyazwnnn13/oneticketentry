@@ -415,7 +415,7 @@ if page == "Home":
         if st.session_state.selected_event == "ROCK INDIE":
             system("ROCK INDIE", "1234", "1jMMZawgQwm3Fgmyqk8zEsgDY0ekzuBBMxWIOA9b6mZI","1h9Whs_042649-FHqZzb-TkXFksZTdlPw1RPZilSgJaI")
 
-        elif st.session_state.selected_event == "MAJMUK ALAM":
+        elif st.session_state.selected_event == "TEATER MALAM PUAKA":
             system("TEATER MALAM PUAKA", "2222", "1USLaPBsO-k41lUF-LayyFtyYFMrCCu8SJxEo7hdwNmc","1-6a1mCrUAfBTPDt_2oNnPl6BrrSmHRdpfpaFR0f3-Co")
 
         elif st.session_state.selected_event == "SPORTS DAY":
