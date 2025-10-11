@@ -385,7 +385,7 @@ page = st.sidebar.radio("Go to:", ["Home", "FAQ","Event Form", "Contact"])
 
 if page == "Home":
    #Event selection=========================================================================    
-    events = ["ROCK INDIE", "MAJMUK ALAM", "SPORTS DAY"]
+    events = ["ROCK INDIE", "TEATER MALAM PUAKA", "SPORTS DAY"]
 
     # Store selection in session state
     if "selected_event" not in st.session_state:
@@ -467,7 +467,7 @@ elif page == "FAQ":
 
 
 elif page == "Contact":
-    st.write("Email - oneticket_612@gmail.com")
+    st.write("Email - oneticket.612@gmail.com")
 
 elif page =="Event Form":
     st.title("Create your event!")
