@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 from io import BytesIO
 import os
 import time 
@@ -46,18 +47,7 @@ def load_attendance(att_table_name: str):
         return pd.DataFrame(columns=["Name", "Matric", "ID"])
 
 
-def add_attendance(att_table_name: str, row: dict):
-    """Insert one attendance record if not duplicate"""
-    try:
-        check = supabase.table(att_table_name).select("*").eq("ID", row["ID"]).execute()
-        if not check.data:
-            supabase.table(att_table_name).insert(row).execute()
-            st.success(f"✅ {row['Name']} marked present!")
-            st.session_state["msg_time"] = time.time()
-        else:
-            st.warning("⚠ Already marked present.")
-    except Exception as e:
-        st.error(f"❌ Failed to add record to '{att_table_name}': {e}")
+
 
 
 def delete_attendance(att_table_name: str, student_id: str):
@@ -102,20 +92,22 @@ def system(event_name, main_table_name, attendance_table_name):
     main_df = load_main_list(main_table_name)
     att_df = load_attendance(attendance_table_name)
 
-    # === Tabs ===
-    tab1, tab2, tab3 = st.tabs(["📋 Overview", "🧾 Record", "⚙ Manage"])
+    def Overview():
+                st.subheader("Main Ticket List")
+                if not main_df.empty:
+                    main_df.index = range(1, len(main_df) + 1)
+                    st.dataframe(main_df, use_container_width=True, height=len(main_df) * 35 + 50)
 
-    # TAB 1: Overview
-    with tab1:
-        st.subheader("Main Ticket List")
-        if not main_df.empty:
-            main_df.index = range(1, len(main_df) + 1)
-        st.dataframe(main_df)
-
-    # TAB 2: Record Attendance
-    with tab2:
+    def Record():
+        st.session_state.active_page = "record"
         st.subheader("Record Attendance")
 
+        # --- Prevent rerun from switching tab ---
+        if "active_tab" not in st.session_state:
+            st.session_state.active_tab = "Record"
+
+
+        # --- Start / Stop QR Scan Mode ---
         if "qr_scan_mode" not in st.session_state:
             st.session_state.qr_scan_mode = False
 
@@ -123,34 +115,15 @@ def system(event_name, main_table_name, attendance_table_name):
         with col1:
             if st.button("📷 Start QR Scan"):
                 st.session_state.qr_scan_mode = True
-                st.rerun()
+                st.session_state.active_page = "record"
+                
         with col2:
             if st.button("🛑 Stop QR Scan"):
                 st.session_state.qr_scan_mode = False
-                st.rerun()
+                st.session_state.active_page = "record"
+                
 
-        # Manual Entry
-        def handle_manual_input():
-            val = st.session_state.manual_entry.strip()
-            if val:
-                match = main_df[
-                    (main_df["ID"].astype(str) == val)
-                    | (main_df["Matric"].astype(str) == val)
-                ]
-                if not match.empty:
-                    add_attendance(attendance_table_name, match.iloc[0].to_dict())
-                else:
-                    st.error("❌ ID not found in main list.")
-
-        st.text_input(
-            "Enter Matric or ID manually:",
-            key="manual_entry",
-            on_change=handle_manual_input
-        )
-        if st.button("✅ Submit Manual Entry"):
-            handle_manual_input()
-
-        # QR Scan
+        # === QR Camera Scanner ===
         if st.session_state.qr_scan_mode:
             img = st.camera_input("Show QR code to camera")
             if img:
@@ -161,30 +134,253 @@ def system(event_name, main_table_name, attendance_table_name):
                         | (main_df["Matric"].astype(str) == qr_value)
                     ]
                     if not match.empty:
-                        add_attendance(attendance_table_name, match.iloc[0].to_dict())
+                        student = match.iloc[0]
+                        # --- Check duplicate before inserting ---
+                        check = supabase.table(attendance_table_name).select("*").eq("ID", student["ID"]).execute()
+                        if not check.data:
+                            new_row = {
+                                "Name": student["Name"],
+                                "Matric": student["Matric"],
+                                "ID": student["ID"]
+                            }
+                            supabase.table(attendance_table_name).insert(new_row).execute()
+                            st.success(f"✅ {student['Name']} marked present!")
+                            st.session_state.active_page = "record"
+                        else:
+                            st.warning("⚠ Already marked present.")
+                            st.session_state.active_page = "record"
                     else:
-                        st.error("❌ QR not found in main list.")
+                        st.error("❌ ID not found in main list.")
+                        st.session_state.active_page = "record"
                 else:
                     st.info("No QR detected.")
+        st.session_state.active_page = "record"
+        # === Manual Entry Section ===
+        st.markdown("### ✍️ Manual Entry")
 
+        if "manual_value" not in st.session_state:
+            st.session_state.manual_value = ""
+
+       # --- Manual Entry Section ---
+        msg_placeholder = st.empty()  # placeholder for messages
+
+        def process_manual_entry():
+            entered_val = st.session_state.manual_value.strip()
+            if not entered_val:
+                return
+            match = main_df[
+                (main_df["ID"].astype(str) == entered_val)
+                | (main_df["Matric"].astype(str) == entered_val)
+            ]
+
+            if not match.empty:
+                student = match.iloc[0]
+                check = supabase.table(attendance_table_name).select("*").eq("ID", student["ID"]).execute()
+                if not check.data:
+                    new_row = {
+                        "Name": student["Name"],
+                        "Matric": student["Matric"],
+                        "ID": student["ID"]
+                    }
+                    supabase.table(attendance_table_name).insert(new_row).execute()
+                    msg_placeholder.success(f"✅ {student['Name']} marked present!")
+                    st.session_state.active_page = "record"
+                else:
+                    msg_placeholder.warning("⚠ Already marked present.")
+                    st.session_state.active_page = "record"
+            else:
+                msg_placeholder.error("❌ No record found with that Matric or ID.")
+                st.session_state.active_page = "record"
+
+            # --- Clear input box ---
+            st.session_state.manual_value = ""
+
+            # --- Auto clear message after 2 seconds ---
+            time.sleep(2)
+            msg_placeholder.empty()
+
+
+        st.text_input(
+            "Enter Ticket ID or Matric:",
+            key="manual_value",
+            on_change=process_manual_entry
+        )
+        st.button("Enter", on_click=process_manual_entry)
+       
+
+        # === Attendance List Display ===
         st.subheader("Attendance List")
         if not att_df.empty:
             att_df.index = range(1, len(att_df) + 1)
-        st.dataframe(att_df)
+        st.dataframe(att_df, use_container_width=True, height=len(att_df) * 35 + 50)
 
-    # TAB 3: Manage Data
+
+    # === Tabs ===
+    tab1, tab2, tab3 = st.tabs(["📋 Overview", "🧾 Record", "⚙ Manage"])
+
+
+    def Manage():
+        st.subheader("⚙ Manage Data")
+
+        tab_main, tab_att = st.tabs(["🧾 Main List", "📋 Attendance"])
+
+        # ------------------------------
+        # MAIN LIST TAB
+        # ------------------------------
+        with tab_main:
+            st.write("Manage Main Ticket List")
+            st.dataframe(main_df, use_container_width=True, height=len(main_df)*35 + 50)
+
+            # --- Add new record ---
+            with st.form("add_main_form"):
+                st.write("➕ Add New Record")
+                new_name = st.text_input("Name", key="add_name")
+                new_matric = st.text_input("Matric", key="add_matric")
+                new_id = st.text_input("ID", key="add_id")
+                submit_add = st.form_submit_button("Add Record")
+
+                if submit_add:
+                    if new_name.strip() and new_matric.strip() and new_id.strip():
+                        new_row = {"Name": new_name.strip(), "Matric": new_matric.strip(), "ID": new_id.strip()}
+                        try:
+                            supabase.table(main_table_name).insert(new_row).execute()
+                            st.success(f"✅ {new_name.strip()} added!")
+                            # Clear form
+                            st.session_state.add_name = ""
+                            st.session_state.add_matric = ""
+                            st.session_state.add_id = ""
+                            st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"Failed to add: {e}")
+                    else:
+                        st.warning("Please fill all fields.")
+
+            # --- Edit/Delete existing record ---
+            with st.form("edit_delete_main"):
+                lookup = st.text_input("Enter Matric or ID to Edit/Delete", key="manage_lookup")
+                col1, col2 = st.columns(2)
+                with col1:
+                    submit_edit_lookup = st.form_submit_button("🔎 Find/Edit")
+                with col2:
+                    submit_delete = st.form_submit_button("🗑 Delete")
+
+            # DELETE
+            if submit_delete and lookup.strip():
+                try:
+                    supabase.table(main_table_name).delete().or_(
+                        f"ID.eq.{lookup.strip()},Matric.eq.{lookup.strip()}"
+                    ).execute()
+                    st.success(f"Deleted record: {lookup.strip()}")
+                    st.session_state.manage_lookup = ""
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"Failed to delete: {e}")
+
+            # EDIT
+            if submit_edit_lookup and lookup.strip():
+                match = main_df[
+                    (main_df["ID"].astype(str) == lookup.strip())
+                    | (main_df["Matric"].astype(str) == lookup.strip())
+                ]
+                if match.empty:
+                    st.error("No record found to edit.")
+                    st.session_state.manage_lookup = ""
+                else:
+                    student = match.iloc[0].to_dict()
+                    with st.form("edit_main_form"):
+                        edit_name = st.text_input("Edit Name", value=student["Name"], key="edit_name")
+                        edit_matric = st.text_input("Edit Matric", value=student["Matric"], key="edit_matric")
+                        submit_edit = st.form_submit_button("💾 Save Changes")
+                        if submit_edit:
+                            updates = {}
+                            if edit_name.strip() != student["Name"]:
+                                updates["Name"] = edit_name.strip()
+                            if edit_matric.strip() != student["Matric"]:
+                                updates["Matric"] = edit_matric.strip()
+                            if updates:
+                                try:
+                                    supabase.table(main_table_name).update(updates).or_(
+                                        f"ID.eq.{student['ID']},Matric.eq.{student['Matric']}"
+                                    ).execute()
+                                    st.success(f"✅ Updated {edit_name.strip()}")
+                                    st.session_state.manage_lookup = ""
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Failed to update: {e}")
+                            else:
+                                st.info("No changes detected.")
+
+        # ------------------------------
+        # ATTENDANCE TAB
+        # ------------------------------
+        with tab_att:
+            st.write("Manage Attendance")
+            st.dataframe(att_df, use_container_width=True, height=len(att_df)*35 + 50)
+
+            # Delete individual attendance
+        with st.form("delete_att_form"):
+            delete_id = st.text_input("Enter ID or Matric to Delete", key="delete_att_input")
+            submit_delete_att = st.form_submit_button("🗑 Delete")
+            if submit_delete_att and delete_id.strip():
+                try:
+                    supabase.table(attendance_table_name).delete().or_(
+                        f"ID.eq.{delete_id.strip()},Matric.eq.{delete_id.strip()}"
+                    ).execute()
+                    st.success(f"Deleted {delete_id.strip()}")
+
+                    # Instead of assigning st.session_state.delete_att_input, just rerun
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to delete: {e}")
+
+        # Clear all attendance with confirmation
+        with st.form("clear_att_form"):
+            confirm_clear = st.text_input("Type 'CLEAR' to confirm clearing all attendance", key="confirm_clear_input")
+            submit_clear_all = st.form_submit_button("🧹 Clear All Attendance")
+            if submit_clear_all and confirm_clear.strip().upper() == "CLEAR":
+                try:
+                    supabase.table(attendance_table_name).delete().execute()
+                    st.success("All attendance cleared!")
+                    st.rerun()  # rerun will reset the input
+                except Exception as e:
+                    st.error(f"Failed to clear attendance: {e}")
+            elif submit_clear_all:
+                st.warning("⚠ You must type 'CLEAR' to confirm.")
+
+
+        with st.expander("📥 Download Attendance List"):
+            if not att_df.empty:
+                output = io.BytesIO()
+                att_df.to_excel(output, index=False)
+                output.seek(0)
+                st.download_button(
+                    label="⬇ Download Excel",
+                    data=output,
+                    file_name=f"{attendance_table_name}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.info("No attendance records to download.")
+
+
+
+
+
+        
+        
+
+
+    with tab1:
+        Overview()
+        st.session_state.active_page = "overview"       
+    with tab2:
+        Record()
+        st.session_state.active_page = "record"
+        if st.session_state.active_page != "record":
+            st.session_state.active_page = "record"
     with tab3:
-        st.subheader("Manage Data")
-
-        manage_type = st.radio("Select Table to Manage:", ["Main List", "Attendance"])
-
-        if manage_type == "Main List":
-            st.dataframe(main_df)
-        else:
-            st.dataframe(att_df)
-            if st.button("🧹 Clear All Attendance"):
-                clear_attendance(attendance_table_name)
-                st.rerun()
+        Manage()
+        st.session_state.active_page = "manage"
 
 
 
