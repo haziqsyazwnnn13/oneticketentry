@@ -126,17 +126,21 @@ def system(event_name, main_table_name, attendance_table_name):
         # === QR Camera Scanner ===
         if st.session_state.qr_scan_mode:
             img = st.camera_input("Show QR code to camera")
+            st.session_state.active_page = "record"
             if img:
                 qr_value = decode_qr_from_image(Image.open(img))
+                st.session_state.active_page = "record"
                 if qr_value:
                     match = main_df[
                         (main_df["ID"].astype(str) == qr_value)
                         | (main_df["Matric"].astype(str) == qr_value)
                     ]
+                    st.session_state.active_page = "record"
                     if not match.empty:
                         student = match.iloc[0]
                         # --- Check duplicate before inserting ---
                         check = supabase.table(attendance_table_name).select("*").eq("ID", student["ID"]).execute()
+                        st.session_state.active_page = "record"
                         if not check.data:
                             new_row = {
                                 "Name": student["Name"],
