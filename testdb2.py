@@ -114,11 +114,13 @@ def system(event_name, main_table_name, attendance_table_name):
         col1, col2 = st.columns(2)
         with col1:
             if st.button("📷 Start QR Scan"):
+                st.session_state.active_page = "record"
                 st.session_state.qr_scan_mode = True
                 st.session_state.active_page = "record"
                 
         with col2:
             if st.button("🛑 Stop QR Scan"):
+                st.session_state.active_page = "record"
                 st.session_state.qr_scan_mode = False
                 st.session_state.active_page = "record"
                 
@@ -613,3 +615,4 @@ st.markdown(
 
 
     
+
