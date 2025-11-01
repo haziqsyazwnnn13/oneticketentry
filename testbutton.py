@@ -406,7 +406,7 @@ def login():
 
 st.set_page_config(page_title="ONETICKET - Rock Indie ", layout="centered")
 
-with bgkc("#2D3333",padding = "0.5em"):
+with bgkc("#1D262F",padding = "0.5em"):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
         st.image("logo.png",width=150)
@@ -546,4 +546,5 @@ st.markdown(
 
 
     
+
 
