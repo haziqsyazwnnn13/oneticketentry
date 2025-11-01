@@ -10,6 +10,7 @@ from PIL import Image
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from supabase import create_client,Client
+from contextlib import contextmanager
 
 
 url = "https://qevcugdmkabvactukacz.supabase.co"
@@ -79,6 +80,44 @@ def decode_qr_from_image(image: Image.Image) -> str:
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+def colored_subheader(title, color="#1A1E27"):
+    st.markdown(
+        f"""
+        <div style="
+            background-color: {color};
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+        ">
+            <h3 style="color: #FFFFFF; margin: 0;">{title}</h3>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+@contextmanager
+def bgkc(color="#212B33", padding="1.5em", radius="0.5em", margin="0px"):
+    """
+    Creates a full-width background section that visually wraps Streamlit widgets.
+    """
+    container = st.container()
+    with container:
+        st.markdown(
+            f"""
+            <style>
+            div[data-testid="stVerticalBlock"] > div:nth-child(1) {{
+                background-color: {color};
+                padding: {padding};
+                border-radius: {radius};
+                margin: {margin};
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        yield container
 
 def Overview(main_table_name, attendance_table_name):
     main_df = load_main_list(main_table_name)
@@ -366,11 +405,13 @@ def login():
 
 
 st.set_page_config(page_title="ONETICKET - Rock Indie ", layout="centered")
-col1, col2, col3 = st.columns([1, 2, 1])
-with col1:
-    st.image("logo.png",width=150)
-with col2: 
-    st.title("ONE TICKET")
+
+with bgkc("#1A3031",padding = "0.5em"):
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        st.image("logo.png",width=150)
+    with col2: 
+        st.title("ONE TICKET")
 
 def sidebar():
 
@@ -381,7 +422,7 @@ def sidebar():
         Overview("Main_RockIndie", "Att_RockIndie")
     
     elif page == "Record":
-        st.header("Record Attendance")
+        colored_subheader("Record Attendance")
         Record("Main_RockIndie", "Att_RockIndie")
 
     elif page == "Manage":
