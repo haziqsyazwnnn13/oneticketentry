@@ -418,7 +418,7 @@ def sidebar():
     page = st.sidebar.radio("Go to:", ["Overview", "Record", "Manage","FAQ", "Contact"])
     
     if page == "Overview":
-        st.header("Overview")
+        colored_subheader("Overview")
         Overview("Main_RockIndie", "Att_RockIndie")
     
     elif page == "Record":
@@ -426,11 +426,11 @@ def sidebar():
         Record("Main_RockIndie", "Att_RockIndie")
 
     elif page == "Manage":
-        st.header("⚙ Manage Data")
+        colored_subheader("⚙ Manage Data")
         Manage("Main_RockIndie", "Att_RockIndie")        
 
     elif page == "FAQ":
-        st.header("❓ Frequently Asked Questions (FAQ)")
+        colored_subheader("❓ Frequently Asked Questions (FAQ)")
 
         with st.expander("What is the ONE TICKET Entry System?"):
             st.write("It’s a digital check-in system that helps event organizers manage ticket automation, scanning, attendance tracking, and entry validation efficiently using QR codes or uploaded ticket lists.")
@@ -474,7 +474,7 @@ def sidebar():
 
 
     elif page == "Contact":
-        st.write("Email - oneticket_612@gmail.com")
+        colored_subheader("Email - oneticket.612@gmail.com")
 
     elif page =="Event Form":
         st.title("Create your event!")
@@ -546,6 +546,7 @@ st.markdown(
 
 
     
+
 
 
 
