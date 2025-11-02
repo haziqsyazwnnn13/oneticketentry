@@ -407,7 +407,7 @@ def login():
 st.set_page_config(page_title="ONETICKET - Rock Indie ", layout="centered")
 
 
-st.image("ONETICKET.png",width=1500)
+st.image("d1.png",width=1500)
 
 
 def sidebar():
@@ -543,6 +543,7 @@ st.markdown(
 
 
     
+
 
 
 
