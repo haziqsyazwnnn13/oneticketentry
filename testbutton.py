@@ -405,7 +405,7 @@ def login():
 
 
 st.set_page_config(page_title="ONETICKET - Rock Indie ", layout="centered")
-st.image("d1.png",width=1500)
+
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2: 
     st.title("  ONE TICKET")
@@ -545,6 +545,7 @@ st.markdown(
 
 
     
+
 
 
 
